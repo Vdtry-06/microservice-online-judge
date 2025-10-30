@@ -1,0 +1,112 @@
+version: "3.8"
+
+services:
+  # Nginx Load Balancer
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - judge-network
+
+  # API Gateway
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - JUDGE_SERVICE_URL=http://judge-service:3001
+      - SUBMISSION_SERVICE_URL=http://submission-service:3002
+      - PROBLEM_SERVICE_URL=http://problem-service:3003
+    depends_on:
+      - judge-service-1
+      - judge-service-2
+      - judge-service-3
+      - submission-service
+      - problem-service
+    networks:
+      - judge-network
+
+  # Judge Service (3 instances for load balancing)
+  judge-service-1:
+    build: ./judge-service
+    environment:
+      - NODE_ENV=production
+      - SERVICE_ID=judge-1
+      - PORT=3001
+    networks:
+      - judge-network
+
+  judge-service-2:
+    build: ./judge-service
+    environment:
+      - NODE_ENV=production
+      - SERVICE_ID=judge-2
+      - PORT=3001
+    networks:
+      - judge-network
+
+  judge-service-3:
+    build: ./judge-service
+    environment:
+      - NODE_ENV=production
+      - SERVICE_ID=judge-3
+      - PORT=3001
+    networks:
+      - judge-network
+
+  # Submission Service
+  submission-service:
+    build: ./submission-service
+    ports:
+      - "3002"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/submissions
+    depends_on:
+      - mongo
+    networks:
+      - judge-network
+
+  # Problem Service
+  problem-service:
+    build: ./problem-service
+    ports:
+      - "3003"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/problems
+    depends_on:
+      - mongo
+    networks:
+      - judge-network
+
+  # MongoDB
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - judge-network
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - nginx
+    networks:
+      - judge-network
+
+networks:
+  judge-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
