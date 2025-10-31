@@ -8,7 +8,9 @@ services:
     container_name: judge-redis
     ports:
       - "6379:6379"
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes
     networks:
       - judge-network
     healthcheck:
@@ -27,6 +29,8 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=admin
       - RABBITMQ_DEFAULT_PASS=admin123
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - judge-network
     healthcheck:
@@ -36,7 +40,8 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Database for Problems Service
+  # ============= DATABASES =============
+
   mongo-problems:
     image: mongo:6
     container_name: judge-mongo-problems
@@ -57,7 +62,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Database for Submissions Service
   mongo-submissions:
     image: mongo:6
     container_name: judge-mongo-submissions
@@ -78,7 +82,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Database for Users Service
   mongo-users:
     image: mongo:6
     container_name: judge-mongo-users
@@ -99,28 +102,59 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # MongoDB UI - View all databases
-  mongo-express:
+  # ============= MONGO UI - Separate instances =============
+
+  mongo-ui-problems:
     image: mongo-express:latest
-    container_name: judge-mongo-ui
+    container_name: judge-mongo-ui-problems
     ports:
       - "8081:8081"
     environment:
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:admin123@mongo-problems:27017/problems?authSource=admin
       - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
       - ME_CONFIG_MONGODB_ADMINPASSWORD=admin123
       - ME_CONFIG_MONGODB_SERVER=mongo-problems
-      - ME_CONFIG_MONGODB_PORT=27017
-      - ME_CONFIG_MONGODB_AUTH_DATABASE=admin
-      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
-      - ME_CONFIG_BASICAUTH_USERNAME=admin
-      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
-      - ME_CONFIG_CONNECT_TIMEOUT=3000
-      - ME_CONFIG_MONGODB_URL=mongodb://admin:admin123@mongo-problems:27017,mongo-submissions:27018,mongo-users:27019?authSource=admin
     depends_on:
       mongo-problems:
         condition: service_healthy
+    networks:
+      - judge-network
+    restart: unless-stopped
+
+  mongo-ui-submissions:
+    image: mongo-express:latest
+    container_name: judge-mongo-ui-submissions
+    ports:
+      - "8082:8081"
+    environment:
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:admin123@mongo-submissions:27017/submissions?authSource=admin
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=admin123
+      - ME_CONFIG_MONGODB_SERVER=mongo-submissions
+    depends_on:
       mongo-submissions:
         condition: service_healthy
+    networks:
+      - judge-network
+    restart: unless-stopped
+
+  mongo-ui-users:
+    image: mongo-express:latest
+    container_name: judge-mongo-ui-users
+    ports:
+      - "8083:8081"
+    environment:
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:admin123@mongo-users:27017/users?authSource=admin
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=admin123
+      - ME_CONFIG_MONGODB_SERVER=mongo-users
+    depends_on:
       mongo-users:
         condition: service_healthy
     networks:
@@ -129,7 +163,6 @@ services:
 
   # ============= MICROSERVICES =============
 
-  # API Gateway - Entry point for backend
   api-gateway:
     build: ./api-gateway
     container_name: judge-api-gateway
@@ -151,16 +184,16 @@ services:
       - judge-network
     restart: unless-stopped
 
-  # Problem Service - Manage problems
+  # Problem Service - 2 replicas
   problem-service:
     build: ./problem-service
-    ports:
-      - "4001-4002:3001"
+    deploy:
+      replicas: 2
     environment:
       - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
       - MONGODB_URI=mongodb://admin:admin123@mongo-problems:27017/problems?authSource=admin
-      - SERVICE_NAME=problem-service
+      - PORT=3001
     depends_on:
       redis:
         condition: service_healthy
@@ -170,18 +203,18 @@ services:
       - judge-network
     restart: unless-stopped
 
-  # Submission Service - Handle submissions
+  # Submission Service - 2 replicas
   submission-service:
     build: ./submission-service
-    ports:
-      - "4003-4004:3002"
+    deploy:
+      replicas: 2
     environment:
       - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
       - MONGODB_URI=mongodb://admin:admin123@mongo-submissions:27017/submissions?authSource=admin
       - PROBLEM_SERVICE_URL=http://problem-service:3001
-      - SERVICE_NAME=submission-service
+      - PORT=3002
     depends_on:
       redis:
         condition: service_healthy
@@ -193,16 +226,16 @@ services:
       - judge-network
     restart: unless-stopped
 
-  # User Service - User management & leaderboard
+  # User Service - 2 replicas
   user-service:
     build: ./user-service
-    ports:
-      - "4005-4006:3003"
+    deploy:
+      replicas: 2
     environment:
       - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
       - MONGODB_URI=mongodb://admin:admin123@mongo-users:27017/users?authSource=admin
-      - SERVICE_NAME=user-service
+      - PORT=3003
     depends_on:
       redis:
         condition: service_healthy
@@ -212,7 +245,7 @@ services:
       - judge-network
     restart: unless-stopped
 
-  # Judge Workers - Execute code
+  # Judge Workers - 3 replicas
   judge-worker:
     build: ./judge-worker
     deploy:
@@ -231,18 +264,21 @@ services:
     networks:
       - judge-network
     restart: unless-stopped
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
 
-  # ============= FRONTEND with NGINX =============
+  # ============= FRONTEND =============
 
-  # Frontend - React App with Nginx
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: judge-frontend
     ports:
-      - "80:80" # Main application
-      - "443:443" # HTTPS (if configured)
+      - "80:80"
+      - "443:443"
     environment:
       - REACT_APP_API_URL=/api
     depends_on:
@@ -252,14 +288,7 @@ services:
     restart: unless-stopped
     healthcheck:
       test:
-        [
-          "CMD",
-          "wget",
-          "--quiet",
-          "--tries=1",
-          "--spider",
-          "http://localhost/health",
-        ]
+        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -270,6 +299,8 @@ networks:
     driver: bridge
 
 volumes:
+  redis-data:
+  rabbitmq-data:
   mongo-problems-data:
   mongo-submissions-data:
   mongo-users-data:
