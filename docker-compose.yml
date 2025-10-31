@@ -236,6 +236,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - MONGODB_URI=mongodb://admin:admin123@mongo-users:27017/users?authSource=admin
       - PORT=3003
+      - JWT_SECRET=c0737fe998f753a5d0ffb0c4514b1bad
     depends_on:
       redis:
         condition: service_healthy
@@ -255,6 +256,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
       - SUBMISSION_SERVICE_URL=http://submission-service:3002
+      - USER_SERVICE_URL=http://user-service:3003
       - MAX_CONCURRENT_JOBS=5
     depends_on:
       redis:
