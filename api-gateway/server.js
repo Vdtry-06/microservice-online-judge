@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 const cors = require("cors");
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json());
 
@@ -167,6 +168,50 @@ app.get("/api/submissions", async (req, res) => {
     res.status(error.response?.status || 500).json({
       error: "Failed to fetch submissions",
       message: error.message,
+    });
+  }
+});
+
+// ============= Authen SERVICE ROUTES ===========
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    console.log("Login request body:", req.body);
+
+    // Extract username and password correctly
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        error: "Missing credentials",
+        message: "Username and password are required",
+      });
+    }
+
+    const response = await axios.post(`${USER_SERVICE_URL}/login`, {
+      username,
+      password,
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error("Login error:", error.response?.data || error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || "Login failed",
+      message: error.response?.data?.message || error.message,
+    });
+  }
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const response = await axios.post(`${USER_SERVICE_URL}/user`, req.body, {
+      timeout: 5000,
+    });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({
+      error: "Registration failed",
+      message: error.response?.data?.error || error.message,
     });
   }
 });
