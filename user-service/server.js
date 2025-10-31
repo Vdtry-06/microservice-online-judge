@@ -12,13 +12,13 @@ const SERVICE_ID = process.env.HOSTNAME || 'user-' + Math.random().toString(36).
 
 // Redis
 const redis = new Redis(REDIS_URL);
-redis.on('connect', () => console.log('✅ [User Service] Redis connected'));
+redis.on('connect', () => console.log('[User Service] Redis connected'));
 
 // MongoDB
 let db;
 MongoClient.connect(MONGODB_URI, { maxPoolSize: 10 }).then(client => {
   db = client.db();
-  console.log('✅ [User Service] MongoDB connected');
+  console.log('[User Service] MongoDB connected');
   
   // Create indexes
   db.collection('users').createIndex({ userId: 1 }, { unique: true });
@@ -258,5 +258,5 @@ process.on('SIGTERM', async () => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 [${SERVICE_ID}] User Service running on port ${PORT}`);
+  console.log(` [${SERVICE_ID}] User Service running on port ${PORT}`);
 });
