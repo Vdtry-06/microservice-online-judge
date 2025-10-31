@@ -11,6 +11,8 @@ const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const RABBITMQ_URL = process.env.RABBITMQ_URL || "amqp://localhost:5672";
 const SUBMISSION_SERVICE_URL =
   process.env.SUBMISSION_SERVICE_URL || "http://localhost:3002";
+const USER_SERVICE_URL =
+  process.env.USER_SERVICE_URL || "http://localhost:3003";
 const QUEUE_NAME = "judge_submissions";
 const MAX_CONCURRENT_JOBS = parseInt(process.env.MAX_CONCURRENT_JOBS) || 5;
 const WORKER_ID =
@@ -57,23 +59,19 @@ function deepEqual(a, b) {
   return false;
 }
 
-// ============= JAVASCRIPT EXECUTION (FIXED) =============
+// ============= JAVASCRIPT EXECUTION =============
 function executeJavaScript(code, testCases) {
   const results = [];
   let allPassed = true;
 
-  // FIX: Create NEW VM for EACH test case
   for (const testCase of testCases) {
     try {
       const startTime = Date.now();
-
-      // NEW VM instance per test case to prevent variable conflicts
       const vm = new VM({
         timeout: 3000,
         sandbox: {},
       });
 
-      // Prepare input
       let inputParam;
       if (typeof testCase.input === "object") {
         inputParam = JSON.stringify(testCase.input);
@@ -81,7 +79,6 @@ function executeJavaScript(code, testCases) {
         inputParam = testCase.input;
       }
 
-      // Execute code
       const executeCode = `
         ${code}
         const result = solve(${inputParam});
@@ -194,7 +191,7 @@ if __name__ == "__main__":
   }
 }
 
-// ============= C++ EXECUTION =============
+// ============= C++ EXECUTION (FIXED) =============
 function executeCpp(code, testCases) {
   const tempDir = `/tmp/judge-${Date.now()}-${Math.random()
     .toString(36)
@@ -205,28 +202,32 @@ function executeCpp(code, testCases) {
   const exeFile = path.join(tempDir, "solution");
 
   try {
+    // Wrap user code with JSON I/O handling
     const wrappedCode = `
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <vector>
-#include <nlohmann/json.hpp>
-
-using json = nlohmann::json;
 using namespace std;
 
+// User's solve function
 ${code}
 
 int main() {
     string input_line;
     getline(cin, input_line);
     
-    try {
-        json input = json::parse(input_line);
-        json result = solve(input);
-        cout << result.dump() << endl;
-    } catch (...) {
-        cout << "{\\"error\\": \\"execution failed\\"}" << endl;
+    // Simple JSON parsing for basic types
+    // Remove quotes if string input
+    if (input_line.front() == '"' && input_line.back() == '"') {
+        input_line = input_line.substr(1, input_line.length() - 2);
     }
+    
+    // Call user's solve function
+    auto result = solve(input_line);
+    
+    // Output result
+    cout << result << endl;
     
     return 0;
 }
@@ -234,6 +235,7 @@ int main() {
 
     fs.writeFileSync(cppFile, wrappedCode);
 
+    // Compile
     execSync(`g++ -o ${exeFile} ${cppFile} -std=c++17 -O2`, {
       timeout: 10000,
       cwd: tempDir,
@@ -245,7 +247,14 @@ int main() {
     for (const testCase of testCases) {
       try {
         const startTime = Date.now();
-        const input = JSON.stringify(testCase.input);
+        
+        // Prepare input
+        let input;
+        if (typeof testCase.input === "string") {
+          input = `"${testCase.input}"`;
+        } else {
+          input = JSON.stringify(testCase.input);
+        }
 
         const outputStr = execSync(exeFile, {
           input,
@@ -254,7 +263,14 @@ int main() {
           cwd: tempDir,
         }).trim();
 
-        const output = JSON.parse(outputStr);
+        // Parse output
+        let output;
+        try {
+          output = JSON.parse(outputStr);
+        } catch {
+          output = outputStr;
+        }
+
         const executionTime = Date.now() - startTime;
         const passed = deepEqual(output, testCase.expected);
 
@@ -288,19 +304,43 @@ int main() {
   }
 }
 
-// ============= JAVA EXECUTION =============
+// ============= JAVA EXECUTION (FIXED) =============
 function executeJava(code, testCases) {
   const tempDir = `/tmp/judge-${Date.now()}-${Math.random()
     .toString(36)
     .substr(2, 9)}`;
   fs.mkdirSync(tempDir, { recursive: true });
 
-  const classNameMatch = code.match(/public\s+class\s+(\w+)/);
-  const className = classNameMatch ? classNameMatch[1] : "Solution";
-  const javaFile = path.join(tempDir, `${className}.java`);
-
   try {
-    fs.writeFileSync(javaFile, code);
+    // Wrap user code with JSON I/O
+    const wrappedCode = `
+import java.util.*;
+import java.io.*;
+
+${code}
+
+class Main {
+    public static void main(String[] args) throws Exception {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String input = br.readLine();
+        
+        // Remove quotes if string
+        if (input.startsWith("\\"") && input.endsWith("\\"")) {
+            input = input.substring(1, input.length() - 1);
+        }
+        
+        Solution solution = new Solution();
+        String result = solution.solve(input);
+        
+        System.out.println(result);
+    }
+}
+`;
+
+    const javaFile = path.join(tempDir, "Main.java");
+    fs.writeFileSync(javaFile, wrappedCode);
+
+    // Compile
     execSync(`javac ${javaFile}`, { cwd: tempDir, timeout: 10000 });
 
     const results = [];
@@ -309,16 +349,28 @@ function executeJava(code, testCases) {
     for (const testCase of testCases) {
       try {
         const startTime = Date.now();
-        const input = JSON.stringify(testCase.input);
 
-        const outputStr = execSync(`java ${className}`, {
+        let input;
+        if (typeof testCase.input === "string") {
+          input = `"${testCase.input}"`;
+        } else {
+          input = JSON.stringify(testCase.input);
+        }
+
+        const outputStr = execSync(`java Main`, {
           cwd: tempDir,
           input,
           timeout: 5000,
           encoding: "utf-8",
         }).trim();
 
-        const output = JSON.parse(outputStr);
+        let output;
+        try {
+          output = JSON.parse(outputStr);
+        } catch {
+          output = outputStr;
+        }
+
         const executionTime = Date.now() - startTime;
         const passed = deepEqual(output, testCase.expected);
 
@@ -355,13 +407,12 @@ function executeJava(code, testCases) {
 // ============= PROCESS JOB =============
 async function processJob(message) {
   const job = JSON.parse(message.content.toString());
-  const { submissionId, code, language, testCases } = job;
+  const { submissionId, code, language, testCases, userId, problemId } = job;
 
   console.log(`[${WORKER_ID}] Processing ${submissionId} (${language})`);
   currentJobs++;
 
   try {
-    // Update status to judging
     await axios
       .put(`${SUBMISSION_SERVICE_URL}/internal/submission/${submissionId}`, {
         status: "judging",
@@ -375,7 +426,6 @@ async function processJob(message) {
     const startTime = Date.now();
     let allPassed, results;
 
-    // Execute based on language
     switch (language.toLowerCase()) {
       case "javascript":
       case "js":
@@ -408,7 +458,6 @@ async function processJob(message) {
       completedAt: new Date(),
     };
 
-    // Update database
     await axios.put(
       `${SUBMISSION_SERVICE_URL}/internal/submission/${submissionId}`,
       {
@@ -418,21 +467,32 @@ async function processJob(message) {
       }
     );
 
-    // Cache result
+    // UPDATE USER SCORE IF ACCEPTED
+    if (allPassed && userId && problemId) {
+      try {
+        await axios.post(`${USER_SERVICE_URL}/internal/user/${userId}/solved`, {
+          problemId,
+          score: 10, // Base score
+        });
+        console.log(`[${WORKER_ID}] Updated score for user ${userId}`);
+      } catch (err) {
+        console.error("Failed to update user score:", err.message);
+      }
+    }
+
     await redis.setex(`result:${submissionId}`, 3600, JSON.stringify(result));
 
-    // Update stats
     const today = new Date().toISOString().split("T")[0];
     await redis.incr(`stats:${allPassed ? "accepted" : "rejected"}:${today}`);
     await redis.incr(`stats:worker:${WORKER_ID}:processed`);
 
     console.log(
-      `[${WORKER_ID}] ok ${submissionId} - ${result.status} (${executionTime}ms)`
+      `[${WORKER_ID}] ✓ ${submissionId} - ${result.status} (${executionTime}ms)`
     );
 
     channel.ack(message);
   } catch (error) {
-    console.error(`[${WORKER_ID}] error ${submissionId} -`, error.message);
+    console.error(`[${WORKER_ID}] ✗ ${submissionId} -`, error.message);
 
     await axios
       .put(`${SUBMISSION_SERVICE_URL}/internal/submission/${submissionId}`, {
@@ -457,7 +517,6 @@ async function startWorker() {
     console.log(`Judge Worker [${WORKER_ID}] started`);
     console.log(`Max concurrent jobs: ${MAX_CONCURRENT_JOBS}`);
 
-    // Consume messages
     channel.consume(QUEUE_NAME, async (message) => {
       if (message) {
         if (currentJobs < MAX_CONCURRENT_JOBS) {
@@ -468,7 +527,6 @@ async function startWorker() {
       }
     });
 
-    // Health check
     setInterval(async () => {
       await redis.setex(
         `worker:${WORKER_ID}:health`,
@@ -486,7 +544,6 @@ async function startWorker() {
   }
 }
 
-// ============= GRACEFUL SHUTDOWN =============
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received, shutting down gracefully...");
   await redis.quit();
