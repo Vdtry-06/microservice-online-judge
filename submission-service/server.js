@@ -33,8 +33,10 @@ MongoClient.connect(MONGODB_URI, { maxPoolSize: 10 })
     // Create indexes
     db.collection("submissions").createIndex({ submissionId: 1 });
     db.collection("submissions").createIndex({ userId: 1 });
+    db.collection("submissions").createIndex({ problemId: 1 });
     db.collection("submissions").createIndex({ status: 1 });
     db.collection("submissions").createIndex({ createdAt: -1 });
+    db.collection("submissions").createIndex({ userId: 1, problemId: 1 });
   })
   .catch((err) => console.error("MongoDB error:", err));
 
@@ -45,8 +47,7 @@ async function connectRabbitMQ() {
     const connection = await amqp.connect(RABBITMQ_URL);
     channel = await connection.createChannel();
     await channel.assertQueue(QUEUE_NAME, {
-      durable: true, 
-      //maxLength: 10000
+      durable: true,
     });
     console.log("[Submission Service] RabbitMQ connected");
   } catch (error) {
@@ -104,14 +105,14 @@ app.get("/metrics", async (req, res) => {
   }
 });
 
-// Submit Code
+// Submit Code - UPDATED WITH USERID AND PROBLEMID
 app.post("/submit", async (req, res) => {
   const { code, language, problemId, userId } = req.body;
 
-  if (!code || !language || !problemId) {
-    return res
-      .status(400)
-      .json({ error: "Missing required fields: code, language, problemId" });
+  if (!code || !language || !problemId || !userId) {
+    return res.status(400).json({
+      error: "Missing required fields: code, language, problemId, userId",
+    });
   }
 
   try {
@@ -146,7 +147,7 @@ app.post("/submit", async (req, res) => {
       // Create submission record
       const submission = {
         submissionId,
-        userId: userId || "anonymous",
+        userId,
         problemId,
         code,
         language,
@@ -157,13 +158,15 @@ app.post("/submit", async (req, res) => {
 
       await db.collection("submissions").insertOne(submission);
 
-      // Send to queue
+      // Send to queue WITH userId and problemId
       const message = {
         submissionId,
         code,
         language,
         testCases,
-        priority: userId === "premium" ? 1 : 5,
+        userId,
+        problemId,
+        priority: 5,
       };
 
       channel.sendToQueue(QUEUE_NAME, Buffer.from(JSON.stringify(message)), {
@@ -220,7 +223,12 @@ app.get("/submission/:id", async (req, res) => {
     }
 
     // Cache if completed
-    if (submission.status === "completed" || submission.status === "failed") {
+    if (
+      submission.status === "completed" ||
+      submission.status === "accepted" ||
+      submission.status === "wrong_answer" ||
+      submission.status === "failed"
+    ) {
       await redis.setex(`result:${id}`, 3600, JSON.stringify(submission));
     }
 
@@ -271,7 +279,12 @@ app.put("/internal/submission/:id", async (req, res) => {
     }
 
     // Cache result if completed
-    if (updates.status === "completed" || updates.status === "failed") {
+    if (
+      updates.status === "completed" ||
+      updates.status === "accepted" ||
+      updates.status === "wrong_answer" ||
+      updates.status === "failed"
+    ) {
       const submission = await db
         .collection("submissions")
         .findOne({ submissionId: id });
@@ -298,7 +311,7 @@ app.get("/stats", async (req, res) => {
         total: await db.collection("submissions").countDocuments(),
         accepted: await db
           .collection("submissions")
-          .countDocuments({ status: "completed", "result.status": "accepted" }),
+          .countDocuments({ status: "accepted" }),
         queued: await db
           .collection("submissions")
           .countDocuments({ status: "queued" }),
