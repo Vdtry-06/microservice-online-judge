@@ -1,22 +1,34 @@
 export const LANGUAGES = {
   javascript: {
     name: "JavaScript",
-    template: `function solve(input) {\n  // Your code here\n  return null;\n}`,
+    template: `function solve(input) {\n  // Your code here\n  // input: string or object\n  // return: result\n  return input;\n}`,
     icon: "🟨",
   },
   python: {
     name: "Python",
-    template: `def solve(input):\n    # Your code here\n    pass`,
+    template: `def solve(input):\n    # Your code here\n    # input: string or object\n    # return: result\n    return input`,
     icon: "🐍",
   },
   cpp: {
     name: "C++",
-    template: `#include <iostream>\nusing namespace std;\n\nint main() {\n    // Your code here\n    return 0;\n}`,
+    template: `// Define your solve function that takes a string and returns a string
+string solve(string input) {
+    // Your code here
+    // Process input and return result
+    return input;
+}`,
     icon: "⚡",
   },
   java: {
     name: "Java",
-    template: `public class Solution {\n    public static void main(String[] args) {\n        // Your code here\n    }\n}`,
+    template: `public class Solution {
+    // Define your solve method that takes a string and returns a string
+    public String solve(String input) {
+        // Your code here
+        // Process input and return result
+        return input;
+    }
+}`,
     icon: "☕",
   },
 };
