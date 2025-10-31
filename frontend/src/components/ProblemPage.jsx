@@ -7,8 +7,10 @@ import {
   Loader,
   Play,
   AlertCircle,
+  CheckCheck,
 } from "lucide-react";
 import { LANGUAGES, DIFFICULTY_COLORS } from "../utils/constants";
+import { useAuth } from "../contexts/AuthContext";
 import apiService from "../services/api";
 
 export default function ProblemPage({ problem, onBack }) {
@@ -20,18 +22,27 @@ export default function ProblemPage({ problem, onBack }) {
   const [pollCount, setPollCount] = useState(0);
   const [syntaxError, setSyntaxError] = useState(null);
   const [testRunResult, setTestRunResult] = useState(null);
+  const [isSolved, setIsSolved] = useState(false);
 
+  const { user, refreshUser } = useAuth();
   const abortControllerRef = useRef(null);
 
   const colors =
     DIFFICULTY_COLORS[problem.difficulty] || DIFFICULTY_COLORS.Easy;
 
-  // --- BỔ SUNG LOGIC ---
+  // Check if user has solved this problem
+  useEffect(() => {
+    if (user && problem) {
+      const solved = user.solvedProblems?.includes(problem.id);
+      setIsSolved(solved);
+    }
+  }, [user, problem]);
+
   const checkSyntax = () => {
     setSyntaxError(null);
     try {
       if (language === "javascript") {
-        new Function(code); // Thử biên dịch code
+        new Function(code);
         setSyntaxError({ type: "success", message: "✓ Syntax is valid!" });
       } else {
         setSyntaxError({
@@ -44,17 +55,16 @@ export default function ProblemPage({ problem, onBack }) {
     }
   };
 
-  // --- BỔ SUNG LOGIC ---
   const runTest = () => {
     setTestRunResult(null);
     if (language !== "javascript") {
-      setTestRunResult({ error: "Test run chỉ hỗ trợ JavaScript" });
+      setTestRunResult({ error: "Test run only supports JavaScript" });
       return;
     }
 
     const testCase = problem.examples?.[0];
     if (!testCase) {
-      setTestRunResult({ error: "Không có test case" });
+      setTestRunResult({ error: "No test case available" });
       return;
     }
 
@@ -66,8 +76,7 @@ export default function ProblemPage({ problem, onBack }) {
     }
 
     try {
-      // Tạo một hàm mới từ code của người dùng và chạy nó
-      const fn = new Function('input', `${code}\nreturn solve(input);`);
+      const fn = new Function("input", `${code}\nreturn solve(input);`);
       const output = fn(input);
       const expectedOutput = JSON.parse(testCase.output);
 
@@ -100,7 +109,7 @@ export default function ProblemPage({ problem, onBack }) {
         code,
         language,
         problemId: problem.id,
-        userId: "user_" + Date.now(),
+        userId: user.userId,
       });
 
       if (debugMode)
@@ -145,6 +154,16 @@ export default function ProblemPage({ problem, onBack }) {
               console.log("Complete in", attempts, "polls:", res.status);
             setResult(res);
             setSubmitting(false);
+
+            // If accepted and wasn't solved before, refresh user data
+            if (res.status === "accepted" && !isSolved) {
+              setIsSolved(true);
+              // Refresh user data to update solved problems list
+              if (refreshUser) {
+                await refreshUser();
+              }
+            }
+
             return;
           }
 
@@ -186,14 +205,23 @@ export default function ProblemPage({ problem, onBack }) {
         >
           ← Back to Problems
         </button>
-        <h1 className="text-3xl font-bold text-white mb-4">{problem.title}</h1>
+
+        <div className="flex items-center gap-3 mb-4">
+          <h1 className="text-3xl font-bold text-white">{problem.title}</h1>
+          {isSolved && (
+            <div className="flex items-center gap-1 px-3 py-1 bg-green-900/30 border border-green-500/30 rounded-full">
+              <CheckCheck className="w-4 h-4 text-green-400" />
+              <span className="text-green-400 text-sm font-medium">Solved</span>
+            </div>
+          )}
+        </div>
+
         <span
           className={`px-3 py-1 rounded-full text-sm font-medium border inline-block mb-6 ${colors.text} ${colors.bg} ${colors.border}`}
         >
           {problem.difficulty}
         </span>
 
-        {/* --- BỔ SUNG JSX --- */}
         <div className="prose prose-invert max-w-none">
           <h3 className="text-xl font-semibold text-white mb-3">Description</h3>
           <p className="text-gray-300 mb-6">{problem.description}</p>
@@ -215,7 +243,6 @@ export default function ProblemPage({ problem, onBack }) {
       </div>
 
       {/* Code Editor */}
-      {/* --- BỔ SUNG JSX --- */}
       <div className="space-y-4">
         <div className="bg-slate-800/50 backdrop-blur border border-purple-500/20 rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
@@ -362,6 +389,7 @@ export default function ProblemPage({ problem, onBack }) {
             <div className="text-sm text-gray-300 space-y-1">
               <p>• Problem ID: {problem.id}</p>
               <p>• Language: {language}</p>
+              <p>• User: {user?.username}</p>
               <p>• Polling: {submitting ? "Active" : "Idle"}</p>
               <p>• Attempts: {pollCount}/20</p>
               {result && <p>• Status: {result.status}</p>}
@@ -384,7 +412,7 @@ export default function ProblemPage({ problem, onBack }) {
                 <>
                   <CheckCircle className="w-6 h-6 text-green-400" />
                   <span className="text-xl font-semibold text-green-400">
-                    Accepted!
+                    Accepted! 🎉
                   </span>
                 </>
               ) : result.status === "timeout" ? (
