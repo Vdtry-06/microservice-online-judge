@@ -474,9 +474,13 @@ async function processJob(message) {
           problemId,
           score: 10, // Base score
         });
-        console.log(`[${WORKER_ID}] Updated score for user ${userId}`);
+        
+        // Update user's solved problems in Redis for quick access
+        const userKey = `user:${userId}:solved`;
+        await redis.sadd(userKey, problemId);
+        console.log(`[${WORKER_ID}] Updated solved problems for user ${userId}`);
       } catch (err) {
-        console.error("Failed to update user score:", err.message);
+        console.error("Failed to update user solved status:", err.message);
       }
     }
 
