@@ -10,46 +10,87 @@ const sampleProblems = [
     title: "Two Sum",
     difficulty: "Easy",
     description:
-      "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+      "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.",
     acceptanceRate: 45.2,
     tags: ["Array", "Hash Table"],
     examples: [
-      { input: "[2,7,11,15], target = 9", output: "[0,1]" },
-      { input: "[3,2,4], target = 6", output: "[1,2]" },
+      { input: "nums = [2,7,11,15], target = 9", output: "[0,1]" },
+      { input: "nums = [3,2,4], target = 6", output: "[1,2]" },
     ],
     testCases: [
-      { input: { nums: [2, 7, 11, 15], target: 9 }, expected: [0, 1] },
-      { input: { nums: [3, 2, 4], target: 6 }, expected: [1, 2] },
-      { input: { nums: [3, 3], target: 6 }, expected: [0, 1] },
+      {
+        input: { nums: [2, 7, 11, 15], target: 9 },
+        expected: [0, 1],
+      },
+      {
+        input: { nums: [3, 2, 4], target: 6 },
+        expected: [1, 2],
+      },
+      {
+        input: { nums: [3, 3], target: 6 },
+        expected: [0, 1],
+      },
     ],
     createdAt: new Date(),
   },
   {
     id: 2,
-    title: "Reverse String",
-    difficulty: "Easy",
+    title: "Add Two Numbers",
+    difficulty: "Medium",
     description:
-      "Write a function that reverses a string. The input string is given as an array of characters.",
-    acceptanceRate: 72.5,
-    tags: ["String", "Two Pointers"],
+      "Given two non-empty arrays representing two non-negative integers, add the two numbers and return the result as an array. The digits are stored in reverse order.",
+    acceptanceRate: 38.5,
+    tags: ["Array", "Math"],
     examples: [
-      { input: '["h","e","l","l","o"]', output: '["o","l","l","e","h"]' },
-      {
-        input: '["H","a","n","n","a","h"]',
-        output: '["h","a","n","n","a","H"]',
-      },
+      { input: "[2,4,3], [5,6,4]", output: "[7,0,8]" },
+      { input: "[0], [0]", output: "[0]" },
     ],
     testCases: [
-      { input: ["h", "e", "l", "l", "o"], expected: ["o", "l", "l", "e", "h"] },
       {
-        input: ["H", "a", "n", "n", "a", "h"],
-        expected: ["h", "a", "n", "n", "a", "H"],
+        input: { l1: [2, 4, 3], l2: [5, 6, 4] },
+        expected: [7, 0, 8],
+      },
+      {
+        input: { l1: [0], l2: [0] },
+        expected: [0],
+      },
+      {
+        input: { l1: [9, 9, 9], l2: [9, 9, 9, 9] },
+        expected: [8, 9, 9, 0, 1],
       },
     ],
     createdAt: new Date(),
   },
   {
     id: 3,
+    title: "Reverse Array",
+    difficulty: "Easy",
+    description:
+      "Write a function that reverses an array. Modify the array in-place and return it.",
+    acceptanceRate: 72.5,
+    tags: ["Array", "Two Pointers"],
+    examples: [
+      { input: "[1,2,3,4,5]", output: "[5,4,3,2,1]" },
+      { input: '["h","e","l","l","o"]', output: '["o","l","l","e","h"]' },
+    ],
+    testCases: [
+      {
+        input: [1, 2, 3, 4, 5],
+        expected: [5, 4, 3, 2, 1],
+      },
+      {
+        input: ["h", "e", "l", "l", "o"],
+        expected: ["o", "l", "l", "e", "h"],
+      },
+      {
+        input: [1],
+        expected: [1],
+      },
+    ],
+    createdAt: new Date(),
+  },
+  {
+    id: 4,
     title: "Palindrome Number",
     difficulty: "Easy",
     description:
@@ -66,12 +107,13 @@ const sampleProblems = [
       { input: -121, expected: false },
       { input: 10, expected: false },
       { input: 12321, expected: true },
+      { input: 0, expected: true },
     ],
     createdAt: new Date(),
   },
   {
-    id: 4,
-    title: "Maximum Subarray",
+    id: 5,
+    title: "Maximum Subarray Sum",
     difficulty: "Medium",
     description:
       "Given an integer array nums, find the contiguous subarray which has the largest sum and return its sum.",
@@ -86,45 +128,26 @@ const sampleProblems = [
       { input: [-2, 1, -3, 4, -1, 2, 1, -5, 4], expected: 6 },
       { input: [1], expected: 1 },
       { input: [5, 4, -1, 7, 8], expected: 23 },
-    ],
-    createdAt: new Date(),
-  },
-  {
-    id: 5,
-    title: "Merge Two Sorted Lists",
-    difficulty: "Medium",
-    description:
-      "You are given the heads of two sorted linked lists list1 and list2. Merge the two lists into one sorted list.",
-    acceptanceRate: 58.9,
-    tags: ["Linked List", "Recursion"],
-    examples: [
-      { input: "list1 = [1,2,4], list2 = [1,3,4]", output: "[1,1,2,3,4,4]" },
-      { input: "list1 = [], list2 = []", output: "[]" },
-    ],
-    testCases: [
-      {
-        input: { list1: [1, 2, 4], list2: [1, 3, 4] },
-        expected: [1, 1, 2, 3, 4, 4],
-      },
-      { input: { list1: [], list2: [] }, expected: [] },
+      { input: [-1], expected: -1 },
     ],
     createdAt: new Date(),
   },
   {
     id: 6,
-    title: "Binary Tree Maximum Path Sum",
-    difficulty: "Hard",
+    title: "Find Maximum",
+    difficulty: "Easy",
     description:
-      "A path in a binary tree is a sequence of nodes where each pair of adjacent nodes has an edge connecting them. Find the maximum path sum.",
-    acceptanceRate: 38.2,
-    tags: ["Tree", "Depth-First Search", "Dynamic Programming"],
+      "Given an array of numbers, return the maximum number in the array.",
+    acceptanceRate: 85.2,
+    tags: ["Array"],
     examples: [
-      { input: "[1,2,3]", output: "6" },
-      { input: "[-10,9,20,null,null,15,7]", output: "42" },
+      { input: "[1,5,3,9,2]", output: "9" },
+      { input: "[-5,-2,-10,-1]", output: "-1" },
     ],
     testCases: [
-      { input: [1, 2, 3], expected: 6 },
-      { input: [-10, 9, 20, null, null, 15, 7], expected: 42 },
+      { input: [1, 5, 3, 9, 2], expected: 9 },
+      { input: [-5, -2, -10, -1], expected: -1 },
+      { input: [42], expected: 42 },
     ],
     createdAt: new Date(),
   },
@@ -146,25 +169,29 @@ const sampleProblems = [
       { input: "()[]{}", expected: true },
       { input: "(]", expected: false },
       { input: "([)]", expected: false },
+      { input: "{[]}", expected: true },
     ],
     createdAt: new Date(),
   },
   {
     id: 8,
-    title: "Longest Common Subsequence",
-    difficulty: "Medium",
+    title: "Fibonacci Number",
+    difficulty: "Easy",
     description:
-      "Given two strings text1 and text2, return the length of their longest common subsequence.",
-    acceptanceRate: 58.7,
-    tags: ["String", "Dynamic Programming"],
+      "Calculate the nth Fibonacci number. F(0) = 0, F(1) = 1, F(n) = F(n - 1) + F(n - 2) for n > 1.",
+    acceptanceRate: 68.9,
+    tags: ["Math", "Recursion", "Dynamic Programming"],
     examples: [
-      { input: 'text1 = "abcde", text2 = "ace"', output: "3" },
-      { input: 'text1 = "abc", text2 = "abc"', output: "3" },
+      { input: "2", output: "1" },
+      { input: "3", output: "2" },
+      { input: "4", output: "3" },
     ],
     testCases: [
-      { input: { text1: "abcde", text2: "ace" }, expected: 3 },
-      { input: { text1: "abc", text2: "abc" }, expected: 3 },
-      { input: { text1: "abc", text2: "def" }, expected: 0 },
+      { input: 2, expected: 1 },
+      { input: 3, expected: 2 },
+      { input: 4, expected: 3 },
+      { input: 5, expected: 5 },
+      { input: 10, expected: 55 },
     ],
     createdAt: new Date(),
   },
@@ -174,39 +201,34 @@ async function seedDatabase() {
   let client;
 
   try {
-    console.log("🔌 Connecting to MongoDB...");
+    console.log("Connecting to MongoDB (Problems)...");
     client = await MongoClient.connect(MONGODB_URI);
     const db = client.db("problems");
 
-    console.log("🗑️  Clearing existing problems...");
+    console.log("Clearing existing problems...");
     await db.collection("problems").deleteMany({});
 
-    console.log("📝 Inserting sample problems...");
+    console.log("Inserting sample problems...");
     const result = await db.collection("problems").insertMany(sampleProblems);
 
-    console.log(`✅ Successfully inserted ${result.insertedCount} problems!`);
+    console.log(`Successfully inserted ${result.insertedCount} problems!`);
 
     // Create indexes
-    console.log("📊 Creating indexes...");
+    console.log("Creating indexes...");
     await db.collection("problems").createIndex({ id: 1 }, { unique: true });
     await db.collection("problems").createIndex({ difficulty: 1 });
     await db.collection("problems").createIndex({ tags: 1 });
 
-    console.log("✅ Database seeded successfully!");
-
-    // Display summary
-    const count = await db.collection("problems").countDocuments();
-    console.log(`\n📊 Total problems in database: ${count}`);
+    console.log("Problem database seeded successfully!");
   } catch (error) {
-    console.error("❌ Error seeding database:", error);
-    process.exit(1);
+    console.error("Error seeding database:", error);
+    // Don't exit - let the service continue
   } finally {
     if (client) {
       await client.close();
-      console.log("👋 Database connection closed");
+      console.log("Database connection closed");
     }
   }
 }
 
-// Run the seed function
 seedDatabase();

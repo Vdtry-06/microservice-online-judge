@@ -91,32 +91,32 @@ async function seedDatabase() {
   let client;
 
   try {
-    console.log("🔌 Connecting to MongoDB (Users)...");
+    console.log("Connecting to MongoDB (Users)...");
     client = await MongoClient.connect(MONGODB_URI);
     const db = client.db("users");
 
-    console.log("🗑️  Clearing existing users...");
+    console.log("Clearing existing users...");
     await db.collection("users").deleteMany({});
 
-    console.log("👥 Inserting sample users...");
+    console.log("Inserting sample users...");
     const result = await db.collection("users").insertMany(sampleUsers);
 
-    console.log(`✅ Successfully inserted ${result.insertedCount} users!`);
+    console.log(`Successfully inserted ${result.insertedCount} users!`);
 
     // Create indexes
-    console.log("📊 Creating indexes...");
+    console.log("Creating indexes...");
     await db.collection("users").createIndex({ userId: 1 }, { unique: true });
     await db.collection("users").createIndex({ username: 1 }, { unique: true });
     await db.collection("users").createIndex({ score: -1 });
 
-    console.log("✅ User database seeded successfully!");
+    console.log("User database seeded successfully!");
   } catch (error) {
-    console.error("❌ Error seeding user database:", error);
+    console.error("Error seeding user database:", error);
     process.exit(1);
   } finally {
     if (client) {
       await client.close();
-      console.log("👋 Database connection closed");
+      console.log("Database connection closed");
     }
   }
 }
