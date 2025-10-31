@@ -25,4 +25,5 @@
         [100 20]
         [500 10]
     + note : [user, request]
+4. docker system prune -a --volumes
 ```
