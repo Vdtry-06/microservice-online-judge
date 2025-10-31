@@ -5,12 +5,9 @@ WORKDIR /app
 # Install compilers and dependencies
 RUN apk add --no-cache \
     g++ \
-    gcc \
     make \
     python3 \
-    py3-pip \
     openjdk17 \
-    openjdk17-jdk \
     curl \
     bash \
     && rm -rf /var/cache/apk/*
