@@ -1,0 +1,22 @@
+{
+  "name": "online-judge-load-testing",
+  "version": "1.0.0",
+  "description": "Load testing tools for Online Judge microservice",
+  "main": "load-test.js",
+  "scripts": {
+    "test:light": "node load-test.js 10 5",
+    "test:medium": "node load-test.js 50 10",
+    "test:heavy": "node load-test.js 100 20",
+    "test:extreme": "node load-test.js 500 10",
+    "test:custom": "node load-test.js",
+    "test:all": "node load-test.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "node": "^25.1.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
